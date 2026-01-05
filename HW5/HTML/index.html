@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>EigenX 在线重构演示</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 50px; background-color: #f0f2f5; }
+        .upload-area {
+            width: 600px; height: 200px; border: 2px dashed #ccc; border-radius: 10px;
+            display: flex; justify-content: center; align-items: center; background: white;
+            cursor: pointer; transition: 0.3s; color: #666;
+        }
+        .upload-area:hover { border-color: #007bff; background: #eef6ff; }
+        #result-container { margin-top: 30px; text-align: center; }
+        img { max-width: 100%; border-radius: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .loading { display: none; color: #007bff; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1>EigenX 特征脸重构演示</h1>
+    <p>拖入图片或点击上传，查看 10/25/50/75 PCs 重构效果</p>
+
+    <div class="upload-area" id="drop-zone">
+        <p>点击或拖拽图片到这里</p>
+        <input type="file" id="file-input" accept="image/*" style="display: none;">
+    </div>
+
+    <div class="loading" id="loading">正在计算特征空间投影...</div>
+
+    <div id="result-container">
+        <!-- 结果图片将显示在这里 -->
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const resultContainer = document.getElementById('result-container');
+        const loading = document.getElementById('loading');
+
+        // 点击上传
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        // 文件选择处理
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+        // 拖拽处理
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#007bff'; });
+        dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.style.borderColor = '#ccc'; });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#ccc';
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file) return;
+            
+            // 显示加载中
+            loading.style.display = 'block';
+            resultContainer.innerHTML = '';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('http://127.0.0.1:5000/predict', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('处理失败');
+                return response.blob();
+            })
+            .then(blob => {
+                const imgUrl = URL.createObjectURL(blob);
+                const img = document.createElement('img');
+                img.src = imgUrl;
+                resultContainer.appendChild(img);
+                
+                const caption = document.createElement('p');
+                caption.innerText = "原图 | 10 PCs | 25 PCs | 50 PCs | 75 PCs";
+                resultContainer.appendChild(caption);
+            })
+            .catch(err => {
+                alert("错误: " + err.message);
+            })
+            .finally(() => {
+                loading.style.display = 'none';
+            });
+        }
+    </script>
+</body>
+</html>
